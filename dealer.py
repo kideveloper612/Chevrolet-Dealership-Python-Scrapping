@@ -3,10 +3,15 @@ import os
 from bs4 import BeautifulSoup
 import re
 import requests
+import urllib.request
+from os import walk
+from datetime import datetime as dt
+from datetime import timedelta as delay
+
 
 class Dealer:
     def __init__(self):
-        self.csv_header = [['NAME', 'REVIEWS', 'LINK', 'REVIEW_DATE', 'DEALERSHIP_RATING', 'SERVICE', 'VISIT', 'IAMGE_URL', 'REVIEW_TITLE', 'SALESMAN_NAME', 'REVIEW_CONTENT', 'CUSTOMER_NAME', 'CUSTOMER RATING', 'CUSTOMER_NAME', 'CUSTOMER RATING', 'CUSTOMER_NAME', 'CUSTOMER RATING', 'CUSTOMER_NAME', 'CUSTOMER RATING', 'CUSTOMER_NAME', 'CUSTOMER RATING']]
+        self.csv_header = [['NAME', 'REVIEWS', 'LINK', 'REVIEW_DATE', 'DEALERSHIP_RATING', 'SERVICE', 'VISIT', 'IAMGE_URL', 'REVIEW_TITLE', 'CUSTOMER_NAME', 'REVIEW_CONTENT', 'SALESMAN_IMAGE', 'SALESMAN_NAME', 'RATING', 'SALESMAN_IMAGE', 'SALESMAN_NAME', 'RATING', 'SALESMAN_IMAGE', 'SALESMAN_NAME', 'RATING', 'SALESMAN_IMAGE', 'SALESMAN_NAME', 'RATING', 'SALESMAN_IMAGE', 'SALESMAN_NAME', 'RATING']]
         self.reviews = []
 
     def write_direct_csv(self, lines, filename):
@@ -59,6 +64,13 @@ class Dealer:
             salesman_name = review_entry.find_next(attrs={'class': 'notranslate'}).text.replace('-', '').strip()
             squares = review_entry.find_all(attrs={'class': 'square-image'})
             line = [review_date, sale_rating, visit, new_old, image, title, salesman_name, review_content]
+            last_date = dt.today() - delay(days=365)
+            try:
+                a = dt.strptime(review_date, "%b %d, %Y")
+            except:
+                a = dt.strptime(review_date, "%B %d, %Y")
+            if a < last_date: 
+                return self.reviews
             for square in squares:
                 table = square.find_parent(attrs={'class': 'table'})
                 customer_name = table.find(attrs={'class': 'notranslate'}).text.strip()
@@ -66,6 +78,8 @@ class Dealer:
                     customer_rating = table.find(attrs={'class': 'relative employee-rating-badge-sm'}).text.strip()
                 else:
                     customer_rating = ''
+                square_style = square['style'].split('url')[1][1:-1]
+                line.append(square_style)
                 line.append(customer_name)
                 line.append(customer_rating)
             print(line)
@@ -84,17 +98,15 @@ class Dealer:
         actions = soup.select('#islrg > div.islrc > div')
         for action in actions:
             count += 1
-            if count < 816:
+            if count < 1:
                 print(count)
                 continue
             # if action.img.has_attr('src'):
             #     image = action.find('img')['src']
             # elif action.img.has_attr('data-src'):
             #     image = action.find('img')['data-src']
-            link = action.find('a', {'class': 'VFACy kGQAp'})['href'].split('page')[0]
+            link = action.find('a', {'class': 'VFACy kGQAp'})['href']
             print(link)
-            if '.pdf' in link:
-                continue
             # if 'data:image' in image:
             #     if not soup.find('script', text=re.compile(link)):
             #         continue
@@ -157,30 +169,14 @@ class Dealer:
                 last_page_number = last_page[-2].text.strip()
             else:
                 last_page_number = 1
+            res_reviews = self.get_review_detail(url=link, last_page_number=last_page_number, count=count, actions=len(actions), count_line=len(lines))
             previous_line = [name, review, link]
-            if int(last_page_number) > 960:
-                over_res_reviews = self.get_review_detail(url=link, last_page_number=960, count=count, actions=len(actions), count_line=len(lines))
-                for line in over_res_reviews:
-                    for insert_index in range(3):
-                        line.insert(insert_index, previous_line[insert_index])
-                    if line not in lines:
-                        lines.append(line)
-                        self.write_csv(lines=[line], filename=save_name)
-                again_res_reviews = self.get_review_detail(url=link, page=960, last_page_number=last_page_number, count=count, actions=len(actions), count_line=len(lines))
-                for line in again_res_reviews:
-                    for insert_index in range(3):
-                        line.insert(insert_index, previous_line[insert_index])
-                    if line not in lines:
-                        lines.append(line)
-                        self.write_csv(lines=[line], filename=save_name)
-            else:
-                res_reviews = self.get_review_detail(url=link, last_page_number=last_page_number, count=count, actions=len(actions), count_line=len(lines))
-                for line in res_reviews:
-                    for insert_index in range(3):
-                        line.insert(insert_index, previous_line[insert_index])
-                    if line not in lines:
-                        lines.append(line)
-                        self.write_csv(lines=[line], filename=save_name)
+            for line in res_reviews:
+                for insert_index in range(3):
+                    line.insert(insert_index, previous_line[insert_index])
+                if line not in lines:
+                    lines.append(line)
+                    self.write_csv(lines=[line], filename=save_name)
             self.reviews = []
         # lines.sort(key=lambda x: (x[0], x[1]))
         # self.write_csv(lines=lines, filename='Chevrolet_Dealer.csv')
@@ -197,11 +193,44 @@ class Dealer:
                 continue
             if d not in total:
                 total.append(d)
-                self.write_csv(lines=[d], filename=new_name)
+                d[2] = d[2].split('page')[0]
+                from datetime import datetime as dt
+                from datetime import timedelta as delay
+                last_date = dt.today() - delay(days=365)
+                try:
+                    a = dt.strptime(d[3], "%b %d, %Y")
+                except:
+                    a = dt.strptime(d[3], "%B %d, %Y")
+                if a > last_date:
+                    self.write_csv(lines=[d], filename=new_name)
 
+    def get_fileList(self, file_path):
+        f = []
+        for (dirpath, dirnames, filenames) in walk(file_path):
+            f.extend(filenames)
+        return f
+
+    def image_download(self, csv_file):
+        if not os.path.isdir('output/images'):
+            os.mkdir('output/images')
+        files = self.get_fileList(file_path='output/images')
+        csv_reader = self.read_csv(file_path='output/%s' % csv_file)
+        image_urls = []
+        for line in csv_reader:
+            image_url = line[7]
+            if 'http' in image_url and image_url not in image_urls:
+                image_urls.append(image_url)
+                name = line[9].replace(' ', '_').replace('/', '_').replace('*', '').replace('<', '').strip() + image_url[-4:]
+                save_name = 'output/images/%s' % name
+                if name in files:
+                    print('Already Download!')
+                    continue
+                print(csv_file.split('_')[0], len(image_urls), name)
+                urllib.request.urlretrieve(image_url, save_name)
 
 print('============================= START =============================')
 dealer = Dealer()
-# dealer.get_dealers(html_file='HTML/chevrolet.html', save_name='Chevrolet/Chevrolet.csv')
-dealer.arrange(file='Chevrolet/Chevrolet.csv', new_name='Chevrolet/again.csv')
+dealer.get_dealers(html_file='Chevrolet.html', save_name='Chevrolet_Again.csv')
+# dealer.arrange(file='Chevrolet.csv', new_name='Chevrolet_Dealer_a.csv')
+# dealer.image_download(csv_file='Chevrolet_Dealer.csv')
 print('============================= ENDED =============================')
