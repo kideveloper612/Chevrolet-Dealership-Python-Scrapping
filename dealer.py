@@ -228,9 +228,51 @@ class Dealer:
                 print(csv_file.split('_')[0], len(image_urls), name)
                 urllib.request.urlretrieve(image_url, save_name)
 
+    def dealerShip(self, fileName, dealer_file):
+        self.csv_header = [['DEALERSHIP', 'NAME', 'TITLE', 'IMAGE', 'WEBSITE_URL']]
+        path = 'output/%s' % fileName
+        ships = []
+        make = fileName.split('_')[0]
+        if os.path.isfile('output/%s' % dealer_file):
+            lines = self.read_csv(file_path='output/%s' % dealer_file)
+        else:
+            lines = [[]]
+        with open(path, encoding='utf-8') as csv_read:
+            rows = list(csv.reader(csv_read))
+        count = 0
+        for row in rows:
+            count += 1
+            if count < -1:
+                print(count)
+                continue
+            if 'http' in row[2] and row[2] not in ships:
+                ship_soup = BeautifulSoup(requests.request('GET', url=row[2]).content, 'html5lib')
+                select = ship_soup.find(id='link')
+                if select:
+                    ships.append(row[2])
+                    employee = 'https://www.dealerrater.com' + select.find('a', text='Employees')['href']
+                    employee_soup = BeautifulSoup(requests.request('GET', url=employee).content, 'html5lib')
+                    cards = employee_soup.find_all('div', attrs={'class': 'employee-tile'})
+                    print(employee)
+                    ship = employee_soup.find(attrs={'class': 'h1-header'}).text.strip()
+                    for card in cards:
+                        image_url = card.find('div', {'class': 'employee-tile-img'}).img['src']
+                        wrapper = card.find(class_='employee-details-wrapper')
+                        name = wrapper.h3.text.strip()
+                        title = wrapper.span.text.strip()
+                        line = [ship, name, title, image_url, employee]
+                        if line not in lines:
+                            print(count/len(rows), count, len(rows))
+                            print(line)
+                            lines.append(line)
+                            self.write_csv(lines=[line], filename=dealer_file)
+
+
 print('============================= START =============================')
 dealer = Dealer()
-dealer.get_dealers(html_file='Chevrolet.html', save_name='Chevrolet_Again.csv')
+# dealer.get_dealers(html_file='Chevrolet.html', save_name='Chevrolet_Again.csv')
 # dealer.arrange(file='Chevrolet.csv', new_name='Chevrolet_Dealer_a.csv')
 # dealer.image_download(csv_file='Chevrolet_Dealer.csv')
+
+dealer.dealerShip(fileName='Acura_Dealer.csv', dealer_file='Acura_DealerShip.csv')
 print('============================= ENDED =============================')
