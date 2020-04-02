@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 
 
 csv_header = [['NAME', 'TITLE', 'EMAIL', 'IMAGE']]
+# csv_header = [['STORE', 'TITLE', 'NAME', 'EMAIL', 'PHONE']]
 
 
 def write_direct_csv(lines, filename):
@@ -46,6 +47,25 @@ def parse():
             line = [name, title, '', image]
             print(line)
             write_csv(lines=[line], filename='Jeep_Dealer.csv')
+
+
+def general_manager():
+    file = open(file='general_manager.html')
+    data = file.read()
+    file.close()
+    url = 'https://www.russdarrow.com/general-managers/'
+    soup = BeautifulSoup(data, 'html5lib')
+    cards = soup.select('.rd-gm .store')
+    for card in cards:
+        email = card.select('span')[1].text
+        card.select('span')[1].decompose()
+        store_detail = card.find('span').text
+        store = store_detail.split('GM')[0]
+        name = store_detail.split('GM')[1][2:].strip()
+        phone = card.find('span', class_='store-phone').text.strip()
+        line = [store, 'General Manager', name, email, phone]
+        write_csv(lines=[line], filename='General_Manager.csv')
+        print(line)
 
 
 if __name__ == '__main__':
