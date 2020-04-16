@@ -11,7 +11,7 @@ def read_file():
     return reader
 
 
-csv_header = [['NAME', 'TITLE', 'EMAIL', 'IMAGE']]
+csv_header = [['NAME', 'TITLE', 'IMAGE']]
 
 
 def write_direct_csv(lines, filename):
@@ -29,7 +29,7 @@ def write_csv(lines, filename):
     write_direct_csv(lines=lines, filename=filename)
 
 
-if __name__ == "__main__":
+if __name__ != "__main__":
     file_content = read_file()
     soup = BeautifulSoup(file_content, 'html5lib')
     cards = soup.select('section.media-bleed-full.deck-listing.aspect-unknown.insight.media-bleed-full', limit=33)
@@ -49,3 +49,15 @@ if __name__ == "__main__":
         line = [name, title, image, email]
         print(line)
         write_csv(lines=[line], filename="jimellischevrolet.csv")
+else:
+    url = 'https://www.dealerrater.com/sales/Jim-Ellis-Chevrolet-Employees-41752/#link'
+    import requests
+    res = requests.get(url=url).content
+    soup = BeautifulSoup(res, 'html5lib')
+    cards = soup.select('.col-lg-3.col-md-3.col-sm-4.col-xs-6.margin-bottom-xl.employee-tile')
+    for card in cards:
+        name = card.h3.text.strip()
+        title = card.h3.next_element.next_element.next_element.text.strip()
+        image = card.find(class_='employee-tile-img').a.img['src']
+        line = [name, title, image]
+        write_csv(lines=[line], filename='dealerraterChevrolet.csv')
