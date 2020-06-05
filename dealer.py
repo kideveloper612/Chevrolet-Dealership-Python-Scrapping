@@ -254,6 +254,7 @@ class Dealer:
                     employee_soup = BeautifulSoup(requests.request('GET', url=employee).content, 'html5lib')
                     cards = employee_soup.find_all('div', attrs={'class': 'employee-tile'})
                     print(employee)
+                    exit()
                     ship = employee_soup.find(attrs={'class': 'h1-header'}).text.strip()
                     for card in cards:
                         image_url = card.find('div', {'class': 'employee-tile-img'}).img['src']
